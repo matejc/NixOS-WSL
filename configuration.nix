@@ -3,13 +3,41 @@
 with lib;
 
 let
-  defaultUser = "andy";
+  defaultUser = "matejc";
   syschdemd = import ./syschdemd.nix { inherit lib pkgs config defaultUser; };
+
+  home-manager = builtins.fetchGit {
+    url = "https://github.com/nix-community/home-manager.git";
+  };
 in
 {
   imports = [
     <nixpkgs/nixos/modules/profiles/minimal.nix>
+    (import "${home-manager}/nixos")
+    ./modules/x11-vnc.nix
+    <hs/nixes/owncast>
+    <hs/nixes/nextcloud-spreed-signaling>
   ];
+
+  nixpkgs.config.allowUnfree = true;
+  environment.noXlibs = lib.mkForce false;
+  environment.systemPackages = with pkgs; [
+    dconf xorg.xrandr
+    libsForQt5.kwallet
+  ];
+  system.activationScripts.specialfs = mkForce "true";
+  home-manager.users.${defaultUser} = import ./modules/hm-configuration.nix {
+    inherit pkgs lib config defaultUser;
+  };
+  services.vnc.enable = true;
+  services.vnc.user = defaultUser;
+  services.dbus.enable = true;
+  programs.mosh.enable = true;
+
+  services.gnome3.gnome-keyring.enable = true;
+
+  services.timesyncd.enable = true;
+  time.timeZone = "Europe/Helsinki";
 
   # WSL is closer to a container than anything else
   boot.isContainer = true;
@@ -22,6 +50,8 @@ in
   users.users.${defaultUser} = {
     isNormalUser = true;
     extraGroups = [ "wheel" ];
+    shell = pkgs.zsh;
+    uid = 1000;
   };
 
   users.users.root = {
